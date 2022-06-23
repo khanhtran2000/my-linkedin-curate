@@ -27,7 +27,7 @@ INGEST_RT = "ingest"
 # Tables
 AUTHOR_TABLE = "all_authors"
 FIELD_TABLE = "all_fields"
-POST_TABLE = "all_posts"
+POST_TABLE = "author_posts"
 
 #--------------- Logging utilities ---------------#
 
@@ -59,7 +59,7 @@ def get_abs_root_path():
 
 
 def get_log_file_path():
-    '''Get log file path. Create on if not exist.
+    '''Get log file path. Create one if not exist.
     '''
     logs_folder_path = os.path.join(get_abs_root_path(), r"../logs/")
     if not os.path.isdir(logs_folder_path):
