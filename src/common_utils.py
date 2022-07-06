@@ -131,10 +131,13 @@ def create_soup(driver, url: str) -> BeautifulSoup:
     try:
         # infinite_scroll(driver=driver) # Not working
         driver.get(url)
+        # Wait to load page
+        time.sleep(5)
         html = driver.page_source
-        soup = BeautifulSoup(html,'lxml')
+        soup = BeautifulSoup(html,'html.parser')
         soup.prettify()
-    except Exception as e:
+    except:
+        # get_logger().error(e)
         get_logger().error(f"Error while creating BeautifulSoup object for url {url}: "  + " Error: " + str(sys.exc_info()[0]))
 
     return soup

@@ -1,12 +1,12 @@
 async-generator==1.10
 attrs==21.4.0
-beautifulsoup4==4.10.0
+beautifulsoup4==4.11.1
 certifi==2021.10.8
 cffi==1.15.0
 cryptography==36.0.1
 h11==0.13.0
 idna==3.3
-lxml==4.7.1
+lxml==4.9.1
 outcome==1.1.0
 psycopg2==2.9.3
 pycparser==2.21

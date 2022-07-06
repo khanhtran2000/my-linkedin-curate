@@ -69,7 +69,7 @@ class DataScraper():
     
     def scrape_containers(self, author_url: str):
         soup = cu.create_soup(driver=self.driver, url=author_url)
-        containers = soup.find_all("div", {"class":"occludable-update ember-view"})
+        containers = soup.find_all("div", {"class":"ember-view occludable-update"})
         return containers
 
 
