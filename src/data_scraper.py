@@ -187,10 +187,8 @@ class LinkedinScraper(DataScraper):
         '''Return texts, reactions count, comments count, shares count, media links, and media types of each author.
         '''
         author_posts = {}
-        # author_urls = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="linkedin_profile_link") # Get profile URLs from the database
-        # author_names = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="author_name") # Get profile names from the database
-        author_urls = ["https://www.linkedin.com/in/jayquincyallen/recent-activity/shares/"]
-        author_names = ["Jay Quincy Allen"]
+        author_urls = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="linkedin_profile_link") # Get profile URLs from the database
+        author_names = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="author_name") # Get profile names from the database
         for n, author_url in enumerate(author_urls):
             texts = self.scrape_content_text(author_url=author_url)
             media_links = self.scrape_media(author_url=author_url)[0]
