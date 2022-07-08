@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 import sys
+import re
 
 import common_utils as cu
 
@@ -72,7 +73,6 @@ class DataScraper():
         containers = soup.find_all("div", {"class":"ember-view occludable-update"})
         return containers
 
-
 class LinkedinScraper(DataScraper):
     def scrape_content_text(self, author_url: str) -> list:
         '''Return content text to ingest into PostgreSQL database.
@@ -88,7 +88,7 @@ class LinkedinScraper(DataScraper):
                 #Appending text to lists
                 post_texts.append(text.text)
             except:
-                self.logger.error(f"Error while scraping post text from URL {author_url} : " + " Error: " + str(sys.exc_info()[0]))
+                post_texts.append('None')
         
         return post_texts
     
@@ -128,18 +128,78 @@ class LinkedinScraper(DataScraper):
         
         return media_links, media_types
 
+    def scrape_reactions_count(self, author_url: str) -> list:
+        '''Return the count of the posts' reactions.
+        '''
+        reactions_counts = []
+
+        for container in self.scrape_containers(author_url=author_url):
+            try:
+                reactions_count_box = container.find("div", {"class":"social-details-social-activity update-v2-social-activity"})
+                reactions_count = reactions_count_box.find("span", {"class":"social-details-social-counts__reactions-count"}).text
+                reactions_count = int(reactions_count.replace(",", ""))
+                reactions_counts.append(reactions_count)
+            except AttributeError:
+                try:
+                    reactions_count = reactions_count_box.find("span", {"class":"social-details-social-counts__social-proof-fallback-number"}).text
+                    reactions_count = int(reactions_count.replace(",", ""))
+                    reactions_counts.append(reactions_count)
+                except:
+                    reactions_counts.append(0)
+
+        return reactions_counts
+
+    def scrape_comments_count(self, author_url: str) -> list:
+        '''Return the count of the posts' comments.
+        '''
+        comments_counts = []
+
+        for container in self.scrape_containers(author_url=author_url):
+            try:
+                comments_count_div_box = container.find("div", {"class":"social-details-social-activity update-v2-social-activity"})
+                comments_count_li_box = comments_count_div_box.find("li", {"class":"social-details-social-counts__item social-details-social-counts__comments social-details-social-counts__item--with-social-proof"})
+                comments_count = comments_count_li_box.find("span").text
+                comments_count = int(re.findall("\d+\\b", comments_count)[0])
+                comments_counts.append(comments_count)
+            except AttributeError:
+                comments_counts.append(0)
+            
+        return comments_counts
+    
+    def scrape_shares_count(self, author_url: str) -> list:
+        '''Return the count of the posts' shares.
+        '''
+        shares_counts = []
+
+        for container in self.scrape_containers(author_url=author_url):
+            try:
+                shares_count_div_box = container.find("div", {"class":"social-details-social-activity update-v2-social-activity"})
+                shares_count_li_box = shares_count_div_box.find("li", {"class":"social-details-social-counts__item social-details-social-counts__item--with-social-proof"})
+                shares_count = shares_count_li_box.find("span").text
+                shares_count = int(re.findall("\d+\\b", shares_count)[0])
+                shares_counts.append(shares_count)
+            except AttributeError:
+                shares_counts.append(0)
+
+        return shares_counts
+
     def scrape_data(self) -> dict:
-        '''Return text, links, and media types.
+        '''Return texts, reactions count, comments count, shares count, media links, and media types of each author.
         '''
         author_posts = {}
-        author_urls = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="url") # Get profile URLs from the database
-        author_names = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="author") # Get profile names from the database
+        # author_urls = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="linkedin_profile_link") # Get profile URLs from the database
+        # author_names = cu.get_attribute_values(connection=self.connect_to_postgres(), run_type=cu.AUTHOR_RT, fields="author_name") # Get profile names from the database
+        author_urls = ["https://www.linkedin.com/in/jayquincyallen/recent-activity/shares/"]
+        author_names = ["Jay Quincy Allen"]
         for n, author_url in enumerate(author_urls):
             texts = self.scrape_content_text(author_url=author_url)
             media_links = self.scrape_media(author_url=author_url)[0]
             media_types = self.scrape_media(author_url=author_url)[1]
+            reactions_count = self.scrape_reactions_count(author_url=author_url)
+            comments_count = self.scrape_comments_count(author_url=author_url)
+            shares_count = self.scrape_shares_count(author_url=author_url)
 
-            author_posts.update({author_names[n]:[texts, media_links, media_types]})
+            author_posts.update({author_names[n]:[texts, reactions_count, comments_count, shares_count, media_links, media_types]})
             
             self.logger.info(f"> Successfully scraped new posts of author {author_names[n]}.")
 

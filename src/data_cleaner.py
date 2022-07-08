@@ -65,6 +65,8 @@ class DataCleaner():
                                                    database=self.get_database())
 
         return connection
+    
+    #----------------------- Texts Preprocessing -----------------------#
 
     def remove_emoji(self, list_of_string: list):
         clean_list = cu.remove_emoji(list_of_string=list_of_string)
@@ -74,52 +76,85 @@ class DataCleaner():
         clean_list = cu.escape_single_quote(list_of_string=list_of_string)
         return clean_list
 
+    def remove_hashtags(self, list_of_string: list):
+        clean_list = cu.remove_hashtags(list_of_string=list_of_string)
+        return clean_list
+    
+    def extract_hashtags(self, list_of_string: list):
+        hashtags = cu.extract_hashtags(list_of_string=list_of_string)
+        return hashtags
+
+    def remove_mentions(self, list_of_string: list):
+        clean_list = cu.remove_mentions(list_of_string=list_of_string)
+        return clean_list
+
+    def extract_mentions(self, list_of_string: list):
+        mentions = cu.extract_mentions(list_of_string=list_of_string)
+        return mentions
+
+    def remove_links(self, list_of_string: list):
+        clean_list = cu.remove_links(list_of_string=list_of_string)
+        return clean_list
+    
+    # def extract_links(self, list_of_string: list):
+    #     links = cu.extract_links(list_of_string=list_of_string)
+    #     return links
+
 
 class LinkedinCleaner(DataCleaner):
-    def create_ids_and_dates(self, nrow: int):
-        '''Create IDs and dates for the clean records.
-        :param nrow:
+    def get_date_keys(self, nrow: int) -> list:
+        '''Get the date keys.
+        :param nrow: number of rows
         '''
-        try:
-            # Get date of the scrape
-            dates = [cu.get_current_date() for i in range(nrow)]
-            # Create a list of IDs for the records
-            max_id = cu.run_select_query(connection=self.connect_to_postgres(), run_type=self.rt, fields="MAX(id)")[0][0]
-            if max_id is None:
-                ids = [i for i in range(1, nrow+1)]
-            else:
-                ids = [i for i in range(max_id+1, max_id+(nrow+1))]
-            self.logger.info("> IDs and dates are created for clean records.\n")
-        except:
-            self.logger.error("Error while creating IDs and dates for clean records : " + " Error: " + str(sys.exc_info()[0]))
+        date_key = cu.get_date_key(connection=self.connect_to_postgres())
+        date_keys = [date_key for i in range(nrow)]
+        return date_keys
 
-        return ids, dates
-
-    def get_author_id_and_field_id(self, nrow: int, author: str):
+    def get_author_keys(self, nrow: int, author: str):
+        '''Get the author keys from the author_dimension table.
+        :param nrow: number of rows
+        :param author: author name
         '''
-        :param nrow:
-        :param author:
-        '''
-        author_id = cu.get_author_id(connection=self.connect_to_postgres(), author=author)
-        field_id = cu.get_author_field_id(connection=self.connect_to_postgres(), author=author)
-        author_ids = [author_id for i in range(nrow)]
-        field_ids = [field_id for i in range(nrow)]
+        author_key = cu.get_author_key(connection=self.connect_to_postgres(), author=author)
+        author_keys = [author_key for i in range(nrow)]
 
-        return author_ids, field_ids
+        return author_keys
 
     def get_clean_records(self, raw_record: list, author: str) -> list:
-        '''
+        '''Clean and prepare clean values for insertions into posts_fact table.
         :param raw_record:
         '''
-        texts, media_links, media_types = raw_record
-        texts = self.remove_emoji(texts) # Remove emoji from texts
-        texts = self.escape_single_quote(texts) # Escape the single quotes in texts
-        ids, dates = self.create_ids_and_dates(nrow=len(texts))
-        author_ids, field_ids = self.get_author_id_and_field_id(nrow=len(texts), author=author)
+        texts, reactions_counts, comments_counts, shares_counts, media_links, media_types = raw_record
+        texts_without_emoji = self.remove_emoji(texts) # Remove emoji from texts
+        clean_texts = self.escape_single_quote(texts_without_emoji) # Escape the single quotes in texts
+        clean_texts = self.remove_hashtags(clean_texts) # Remove hashtags
+        clean_texts = self.remove_mentions(clean_texts) # Remove mentions
+        clean_texts = self.remove_links(clean_texts) # Remove links
+        date_keys = self.get_date_keys(nrow=len(texts))
+        author_keys = self.get_author_keys(nrow=len(texts), author=author)
+
+        # Preprocess hashtags, and mentions
+        raw_hashtags = self.extract_hashtags(texts_without_emoji)
+        raw_mentions = self.extract_mentions(texts_without_emoji)
+
+        hashtags = []
+        for raw_hashtag in raw_hashtags:
+            if len(raw_hashtag) > 0:
+                hashtags.append("{" + ','.join(raw_hashtag) + "}")
+            else:
+                hashtags.append('{' + 'None' + '}')
+
+        mentions = []
+        for raw_mention in raw_mentions:
+            if len(raw_mention) > 0:
+                mentions.append("{" + ','.join(raw_mention) + "}")
+            else:
+                mentions.append('{' + 'None' + '}')
+
         try:
-            clean_records = list(zip(ids, author_ids, field_ids, texts, dates, media_links, media_types))
-            self.logger.info("> Records are ready for data ingestion.\n")
-        except Exception as e:
-            self.logger.error("Error while finalizing records for data ingestion : " + " Error: " + str(sys.exc_info()[0]))
+            clean_records = list(zip(date_keys, author_keys, clean_texts, reactions_counts, comments_counts, shares_counts, media_links, media_types, hashtags, mentions))
+            self.logger.info("> Records are ready for data ingestion into posts_fact table.\n")
+        except:
+            self.logger.error("Error while finalizing records for data ingestion into posts_fact table: " + " Error: " + str(sys.exc_info()[0]))
 
         return clean_records

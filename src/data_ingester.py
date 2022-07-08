@@ -1,5 +1,6 @@
 import os
 import sys
+import psycopg2
 
 import common_utils as cu
 
@@ -67,8 +68,10 @@ class DataIngester():
 
 
 class LinkedinIngester(DataIngester):
-    def ingest_posts(self, clean_records: list):
-        '''Update new scraped Linkedin data into the table.
+    def ingest_data(self, clean_records: list):
+        '''Update new scraped Linkedin data into the posts_fact table.
+        :param connection: an established connection to the server.
+        :param clean_records: data to be ingested.
         '''
         table_name = cu.get_table_name(run_type=self.rt)
         # Connect
@@ -77,7 +80,7 @@ class LinkedinIngester(DataIngester):
         # Ingest
         try:
             for record in clean_records:
-                query = f"""INSERT INTO {table_name} VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                query = f"""INSERT INTO {table_name} VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
                 cursor.execute(query, record)
                 connection.commit()
                 self.logger.info(f"> Successfully ingested record {record} into table {table_name}.\n")
@@ -85,5 +88,4 @@ class LinkedinIngester(DataIngester):
             self.logger.error(f"Error while trying to insert records into table : {table_name} " + " Error: " + str(sys.exc_info()[0]))
             
         connection.close()
-
         self.logger.info("> PostgreSQL connection is closed.")

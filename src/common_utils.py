@@ -9,6 +9,7 @@ import logging
 from logging.handlers import WatchedFileHandler
 from datetime import datetime
 import time
+import re
 
 
 load_dotenv()
@@ -21,13 +22,13 @@ password = os.getenv("LINKEDIN_PASSWORD")
 logger = None
 # Run types
 AUTHOR_RT = "author"
-FIELD_RT = "field"
+DATE_RT = "date"
 POST_RT = "post"
 INGEST_RT = "ingest"
 # Tables
-AUTHOR_TABLE = "all_authors"
-FIELD_TABLE = "all_fields"
-POST_TABLE = "author_posts"
+AUTHOR_TABLE = "author_dimension"
+DATE_TABLE = "date_dimension"
+POST_TABLE = "posts_fact"
 
 #--------------- Logging utilities ---------------#
 
@@ -145,13 +146,6 @@ def create_soup(driver, url: str) -> BeautifulSoup:
 #--------------- End of Scraping utilities ---------------#
 
 
-def get_current_date() -> str:
-    '''Return current date as a string.
-    '''
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return now
-
-
 def create_postgres_connection(user: str, password: str, host: str, port: str, database: str) -> psycopg2.extensions.connection:
     '''Create a connection to PostgresSQL database
     :param user:
@@ -180,8 +174,8 @@ def get_table_name(run_type: str):
     try:
         if run_type == AUTHOR_RT:
             table_name = AUTHOR_TABLE
-        elif run_type == FIELD_RT:
-            table_name = FIELD_TABLE
+        elif run_type == DATE_RT:
+            table_name = DATE_TABLE
         elif run_type == POST_RT:
             table_name = POST_TABLE
     except:
@@ -204,35 +198,63 @@ def get_attribute_values(connection: psycopg2.extensions.connection, run_type: s
         get_logger().error(f"Error while getting values of {fields} in {run_type} run type: " + " Error: " + str(sys.exc_info()[0]))
 
 
-def get_author_id(connection: psycopg2.extensions.connection, author: str):
-    '''Get id of a given author.
+def build_date_dimension_values():
+    '''Build values for an insertion into date_dimension table.
     '''
-    constraint = f"WHERE author='{author}'"
-    try:
-        author_id = run_select_query(connection=connection, 
-                                     run_type=AUTHOR_RT, 
-                                     fields="id", 
-                                     constraint=constraint)
-        author_id = author_id[0][0]
-        return author_id
-    except:
-        get_logger().error(f"Error while getting author id of {author} : " + " Error: " + str(sys.exc_info()[0]))
-
-
-def get_author_field_id(connection: psycopg2.extensions.connection, author: str):
-    '''Get field id of a given author.
-    '''
-    constraint = f"WHERE author='{author}'"
-    try:
-        field_id = run_select_query(connection=connection,
-                                     run_type=AUTHOR_RT,
-                                     fields="field_id",
-                                     constraint=constraint)
-        field_id = field_id[0][0]
-        return field_id
-    except:
-        get_logger().error(f"Error while getting field id of {author} : " + " Error: " + str(sys.exc_info()[0]))
+    current_day = datetime.now().strftime("%d")
+    current_month = datetime.now().strftime("%m")
+    calendar_year = datetime.now().strftime("%Y")
+    current_date = f"{calendar_year}{current_month}{current_day}" # also date_key
+    calendar_month = datetime.now().strftime("%B")
+    day_of_week = datetime.now().strftime("%A")
+    full_date_des = f"{calendar_month} {current_day}, {calendar_year}"
+    calendar_quarter = f"Q{int(current_month)//3 + 1}"
     
+    if day_of_week in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]:
+        weekday_indicator = "Weekday"
+    else:
+        weekday_indicator = "Weekend"
+
+    return (current_date, current_date, full_date_des, day_of_week, calendar_month, calendar_quarter, calendar_year, weekday_indicator)
+
+
+def get_date_key(connection: psycopg2.extensions.connection):
+    '''Get date_key for the current date.
+    '''
+    current_date = datetime.now().strftime("%Y%m%d")
+    try:
+        queried_date_keys = run_select_query(connection=connection,
+                                             run_type=DATE_RT,
+                                             fields="date_key")
+        available_date_keys = []
+        for date_keys in queried_date_keys:
+            available_date_keys.append(date_keys[0])
+        
+        if current_date not in available_date_keys:
+            new_date_dimension_row = build_date_dimension_values()
+            run_insert_query(connection=connection, run_type=DATE_RT, records_to_insert=new_date_dimension_row)
+    except:
+        get_logger().error(f"Error while getting date key for date: {current_date} : " + " Error: " + str(sys.exc_info()[0]))
+    
+    return current_date
+
+
+def get_author_key(connection: psycopg2.extensions.connection, author: str):
+    '''Get author_key of a given author.
+    :param connection: an established connection to the server to run query against the database
+    :param 
+    '''
+    constraint = f"WHERE author_name='{author}'"
+    try:
+        author_key = run_select_query(connection=connection, 
+                                     run_type=AUTHOR_RT, 
+                                     fields="author_key", 
+                                     constraint=constraint)
+        author_key = author_key[0][0]
+        return author_key
+    except:
+        get_logger().error(f"Error while getting author key of {author} : " + " Error: " + str(sys.exc_info()[0]))
+
 
 #--------------- Build queries ---------------#
 
@@ -273,8 +295,8 @@ def build_select_query(table_name: str, fields: str):
 
 def run_insert_query(connection: psycopg2.extensions.connection, run_type: str, records_to_insert: tuple):
     '''Execute the insert records query into PostgreSQL table.
-    :param connection:
-    :param run_type:
+    :param connection: an established connection to the server
+    :param run_type: any of [AUTHOR_RT, DATE_RT, POST_RT, LINK_RT]
     :param records_to_insert:
     '''
     cursor = connection.cursor()
@@ -286,7 +308,8 @@ def run_insert_query(connection: psycopg2.extensions.connection, run_type: str, 
         connection.commit()
         get_logger().info(f"> Successfully ingested record {records_to_insert} into table {table_name}.\n")
     except:
-        get_logger().error(f"Error while trying to insert records into table : {table_name} " + " Error: " + str(sys.exc_info()[0]))
+        get_logger().error(f"Error while trying to insert: {records_to_insert}.")
+        # get_logger().error(f"Error while trying to insert records into table : {table_name} " + " Error: " + str(sys.exc_info()[0]))
     # finally:
     #     cursor.close()
     #     connection.close()
@@ -336,7 +359,7 @@ def remove_emoji(list_of_string: list):
     return clean_list
 
 
-def escape_single_quote(list_of_string: list):
+def escape_single_quote(list_of_string: list) -> list:
     '''Remove unwanted symbols.
     :param list_of_string:
     '''
@@ -347,6 +370,54 @@ def escape_single_quote(list_of_string: list):
         clean_list.append(clean_string)
     
     return clean_list
+
+
+def remove_hashtags(list_of_string: list) -> list:
+    '''Remove hashtags from a list of strings.
+    :param list_of_string:
+    '''
+    clean_list = [re.sub("(\#[a-zA-Z0-9]+\\b)", "", string) for string in list_of_string]
+    return clean_list
+
+
+def extract_hashtags(list_of_string: list) -> list:
+    '''Extract hashtags from a list of strings.
+    :param list_of_string:
+    '''
+    hashtags = [re.findall("(\#[a-zA-Z0-9]+\\b)", string) for string in list_of_string]
+    return hashtags
+
+
+def remove_mentions(list_of_string: list) -> list:
+    '''Remove mentions from a list of strings.
+    :param list_of_string:
+    '''
+    clean_list = [re.sub("(\@[a-zA-Z0-9]+\\b)", "", string) for string in list_of_string]
+    return clean_list
+
+
+def extract_mentions(list_of_string: list) -> list:
+    '''Extract mentions from a list of strings.
+    :param list_of_string:
+    '''
+    mentions = [re.findall("(\@[a-zA-Z0-9]+\\b)", string) for string in list_of_string]
+    return mentions
+
+
+def remove_links(list_of_string: list) -> list:
+    '''Remove links from a list of strings.
+    :param list_of_string:
+    '''
+    clean_list = [re.sub("((https?):((//)|(\\\\))+([\w\d:#@%/;$()~_?\+-=\\\.&](#!)?)*)", "", string) for string in list_of_string]
+    return clean_list
+
+
+# def extract_links(list_of_string: list) -> list:
+#     '''Extract links from a list of strings.
+#     :param list_of_string:
+#     '''
+#     links = [re.findall("((https?):((//)|(\\\\))+([\w\d:#@%/;$()~_?\+-=\\\.&](#!)?)*)", string) for string in list_of_string]
+#     return links
 
 
 #--------------- End of Cleaning data ---------------#
