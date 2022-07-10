@@ -1,5 +1,34 @@
 # Linkedin Curator
 
+
+## Updates - 07/09/2022
+
+### Progress
+:white_check_mark: Migrated the local PostgreSQL database to a cloud database using AWS RDS.
+:white_check_mark: Redesigned the database schema to follow a dimensional model structure.
+:white_check_mark: Posts from new authors will be added to the scrape.
+:x: More authors are needed considering each only produces a handful of posts per week. The current size of the database is still too small do conduct any meaningful analysis.
+:x: No progress has been made to the analysis side. New functions will be added to the Colab notebook to connect to the database and extract the data from there.
+:x: No plans on what to analyze. Essentially, this is the project proposal.
+
+### New database model
+
+![database_schema](./images/database_schema.png)
+
+Our database will consist of three tables, two dimension tables and one fact table. It is fairly simple to understand the relationships between these three tables. There are no primary keys in the `posts_fact` table. Instead, we have two foreign keys: `date_key` which is the primary key of `date_dimension` table and `author_key` which is the primary key of `author_dimension` table. The reason is because in a dimensional model, the general idea is to access the fact table via its dimension tables, so we always start our query from the dimension tables. Also, we still gurantee the uniqueness of the rows in the fact table by creating a composite primary key. In this case, `author_key` and `clean_text` are set to be unique as a combination. In other words, we don't want to to store the same post of the same author in our database.
+
+Our analysis will be using data from these three tables. The texts have already been cleaned and preprocessed enough for simple analysis. For example, you can now write a simple aggregation query in SQL to get the top 10 most popular hashtags in our database. More complicated analysis will require further text manipulation.
+
+### Colab notebook
+https://colab.research.google.com/drive/1dWvhGQCg9xHYk5ABxw0TIhE3kIRwO0gP
+
+### TODO list
+1. Add more authors to the `author_dimension` table so that our fact table and expand in size more rapidly.
+2. Come up with what we want to analyze. Essentially, build the project proposal.
+3. Start building the Colab notebook.
+
+---
+
 ## 1. Goal
 Periodly and automatically extract and curate Linkedin posts that are relevant to recruitment information of interest. The posts will be cleaned and converted into row-based data that will be stored in a PostgreSQL database. The data then can be queried and analyzed by end-users.
 
