@@ -4,11 +4,11 @@
 ## Updates - 07/09/2022
 
 ### Progress
-:white_check_mark: Migrated the local PostgreSQL database to a cloud database using AWS RDS.
-:white_check_mark: Redesigned the database schema to follow a dimensional model structure.
-:white_check_mark: Posts from new authors will be added to the scrape.
-:x: More authors are needed considering each only produces a handful of posts per week. The current size of the database is still too small do conduct any meaningful analysis.
-:x: No progress has been made to the analysis side. New functions will be added to the Colab notebook to connect to the database and extract the data from there.
+:white_check_mark: Migrated the local PostgreSQL database to a cloud database using AWS RDS.\
+:white_check_mark: Redesigned the database schema to follow a dimensional model structure.\
+:white_check_mark: Posts from new authors will be added to the scrape.\
+:x: More authors are needed considering each only produces a handful of posts per week. The current size of the database is still too small do conduct any meaningful analysis.\
+:x: No progress has been made to the analysis side. New functions will be added to the Colab notebook to connect to the database and extract the data from there.\
 :x: No plans on what to analyze. Essentially, this is the project proposal.
 
 ### New database model
