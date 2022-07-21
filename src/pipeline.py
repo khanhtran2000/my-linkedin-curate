@@ -22,7 +22,7 @@ class LinkedinPipeline(Pipeline):
         cleaner = dc.LinkedinCleaner()
         for author in raw_records.keys():
             clean_records = cleaner.get_clean_records(raw_record=raw_records[author], author=author)
-            # self.logger.info(clean_records)
+            self.logger.info(clean_records)
             # Ingest
             ingester = di.LinkedinIngester()
             ingester.ingest_data(clean_records=clean_records)

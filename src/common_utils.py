@@ -98,10 +98,11 @@ def login_linkedin():
         elementID = driver.find_element(By.ID, "password")
         elementID.send_keys(password)
         elementID.submit()
-        get_logger().info("Successfully log in Linkedin account with username: " + username)
+        get_logger().info("Successfully log in LinkedIn account with username: " + username)
         return driver
-    except:
-        get_logger().error(f"Error while logging in Linkedin account {username}: "  + " Error: " + str(sys.exc_info()[0]))
+    except Exception as e:
+        get_logger().error(e)
+        # get_logger().error(f"Error while logging in Linkedin account {username}: "  + " Error: " + str(sys.exc_info()[0]))
 
 
 def infinite_scroll(driver):
@@ -136,7 +137,7 @@ def create_soup(driver, url: str) -> BeautifulSoup:
         time.sleep(5)
         html = driver.page_source
         soup = BeautifulSoup(html,'html.parser')
-        soup.prettify()
+        # soup.prettify()
     except:
         # get_logger().error(e)
         get_logger().error(f"Error while creating BeautifulSoup object for url {url}: "  + " Error: " + str(sys.exc_info()[0]))
