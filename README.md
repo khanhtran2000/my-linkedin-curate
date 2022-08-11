@@ -5,7 +5,7 @@
 ### Progress:
 ✅: More authors are needed considering each only produces a handful of posts per week. There are currently 650 posts from ~40 authors. Still need more but this is enough to conduct insightful analysis.\
 ✅: Some progress have been made to the analysis side.\
-✅: We got the proposal.
+✅: We got the proposal.\
 :x: More in-depth analysis needs to be conducted.
 
 ---
