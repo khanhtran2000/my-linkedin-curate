@@ -39,7 +39,7 @@ https://colab.research.google.com/drive/1dWvhGQCg9xHYk5ABxw0TIhE3kIRwO0gP
 ---
 
 ## 1. Goal
-Periodly and automatically extract and curate Linkedin posts that are relevant to recruitment information of interest. The posts will be cleaned and converted into row-based data that will be stored in a PostgreSQL database. The data then can be queried and analyzed by end-users.
+Periodically and automatically extract and curate Linkedin posts that are relevant to recruitment information of interest. The posts will be cleaned and converted into row-based data that will be stored in a PostgreSQL database. The data then can be queried and analyzed by end-users.
 
 ## 2. Current System Infra
 
